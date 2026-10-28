@@ -15,7 +15,7 @@
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, Generator, List, cast
 from urllib.parse import parse_qs
 
 import pytest
@@ -60,24 +60,29 @@ def test_fetch_should_work(context: BrowserContext, server: Server) -> None:
     assert response.text() == '{"foo": "bar"}\n'
 
 
-def test_should_return_timing(context: BrowserContext) -> None:
-    fresh_server = HTTPServer()
-    fresh_server.start()
-    try:
-        response = context.request.get(fresh_server.EMPTY_PAGE)
-        timing = response.timing
-        assert abs(timing["startTime"] - time.time() * 1000) < 10000
-        assert timing["domainLookupStart"] == 0
-        assert timing["domainLookupEnd"] >= timing["domainLookupStart"]
-        assert timing["connectStart"] == timing["domainLookupEnd"]
-        assert timing["secureConnectionStart"] == -1
-        assert timing["connectEnd"] >= timing["connectStart"]
-        assert timing["requestStart"] == timing["connectEnd"]
-        assert timing["responseStart"] >= timing["requestStart"]
-        assert timing["responseEnd"] >= timing["responseStart"]
-        assert timing["responseEnd"] < 60000
-    finally:
-        fresh_server.stop()
+@pytest.fixture
+def fresh_server() -> Generator[HTTPServer, None, None]:
+    http_server = HTTPServer()
+    http_server.start()
+    yield http_server
+    http_server.stop()
+
+
+def test_should_return_timing(
+    context: BrowserContext, fresh_server: HTTPServer
+) -> None:
+    response = context.request.get(fresh_server.EMPTY_PAGE)
+    timing = response.timing
+    assert abs(timing["startTime"] - time.time() * 1000) < 10000
+    assert timing["domainLookupStart"] == 0
+    assert timing["domainLookupEnd"] >= timing["domainLookupStart"]
+    assert timing["connectStart"] == timing["domainLookupEnd"]
+    assert timing["secureConnectionStart"] == -1
+    assert timing["connectEnd"] >= timing["connectStart"]
+    assert timing["requestStart"] == timing["connectEnd"]
+    assert timing["responseStart"] >= timing["requestStart"]
+    assert timing["responseEnd"] >= timing["responseStart"]
+    assert timing["responseEnd"] < 60000
 
 
 def test_should_throw_on_network_error(context: BrowserContext, server: Server) -> None:
