@@ -59,16 +59,9 @@ def test_browser_type_executable_path_should_work(
 
 
 def test_browser_type_name_should_work(
-    browser_type: BrowserType, is_webkit: bool, is_firefox: bool, is_chromium: bool
+    browser_type: BrowserType, browser_name: str
 ) -> None:
-    if is_webkit:
-        assert browser_type.name == "webkit"
-    elif is_firefox:
-        assert browser_type.name == "firefox"
-    elif is_chromium:
-        assert browser_type.name == "chromium"
-    else:
-        raise ValueError("Unknown browser")
+    assert browser_type.name == browser_name
 
 
 def test_browser_close_should_fire_close_event_for_all_contexts(
