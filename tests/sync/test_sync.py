@@ -354,15 +354,10 @@ def test_call_sync_method_after_playwright_close_with_own_loop(
 
 
 def test_should_return_proper_api_name_on_error(page: Page) -> None:
-    try:
+    with pytest.raises(Error) as exc_info:
         page.evaluate("does_not_exist")
-
-        assert (
-            False
-        ), "Accessing undefined JavaScript variable should have thrown exception"
-    except Exception as error:
-        # Each browser returns slightly different error messages, but they should all start with "Page.evaluate:", because that was the Playwright method where the error originated
-        assert str(error).startswith("Page.evaluate:")
+    # Each browser returns slightly different error messages, but they should all start with "Page.evaluate:", because that was the Playwright method where the error originated
+    assert str(exc_info.value).startswith("Page.evaluate:")
 
 
 def test_should_not_orphan_callback_on_non_serializable_params(
