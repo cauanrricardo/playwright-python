@@ -295,19 +295,19 @@ def test_should_throw_an_error_when_max_redirects_is_exceeded(
     assert "Max redirect count exceeded" in str(exc_info)
 
 
+@pytest.mark.parametrize("method", ["GET", "PUT", "POST", "OPTIONS", "HEAD", "PATCH"])
 def test_should_not_follow_redirects_when_max_redirects_is_set_to_0(
-    playwright: Playwright, server: Server
+    playwright: Playwright, server: Server, method: str
 ) -> None:
     server.set_redirect("/a/redirect1", "/b/c/redirect2")
     server.set_redirect("/b/c/redirect2", "/simple.json")
 
     request = playwright.request.new_context()
-    for method in ["GET", "PUT", "POST", "OPTIONS", "HEAD", "PATCH"]:
-        response = request.fetch(
-            server.PREFIX + "/a/redirect1", method=method, max_redirects=0
-        )
-        assert response.headers["location"] == "/b/c/redirect2"
-        assert response.status == 302
+    response = request.fetch(
+        server.PREFIX + "/a/redirect1", method=method, max_redirects=0
+    )
+    assert response.headers["location"] == "/b/c/redirect2"
+    assert response.status == 302
 
 
 def test_should_throw_an_error_when_max_redirects_is_less_than_0(
