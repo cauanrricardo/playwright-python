@@ -60,8 +60,7 @@ def test_should_acknowledge_frames_after_callback(page: Page, server: Server) ->
         frame_count += 1
         assert page.title() == ""
 
-    page.screencast.start(on_frame=on_frame)
-    try:
+    with page.screencast.start(on_frame=on_frame):
         page.goto(server.EMPTY_PAGE)
         page.evaluate("() => document.body.style.backgroundColor = 'red'")
         ensure_some_frames(page)
@@ -69,8 +68,6 @@ def test_should_acknowledge_frames_after_callback(page: Page, server: Server) ->
         page.evaluate("() => document.body.style.backgroundColor = 'blue'")
         ensure_some_frames(page)
         assert frame_count > frames_before_repaint
-    finally:
-        page.screencast.stop()
 
 
 def test_should_report_callback_errors_and_continue_delivering_frames(
