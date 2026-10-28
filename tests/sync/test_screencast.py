@@ -116,12 +116,9 @@ def test_should_report_callback_errors_and_continue_delivering_frames(
 
 
 def test_starting_twice_should_throw(page: Page) -> None:
-    page.screencast.start(on_frame=lambda f: None)
-    try:
+    with page.screencast.start(on_frame=lambda f: None):
         with pytest.raises(Exception, match="already started"):
             page.screencast.start(on_frame=lambda f: None)
-    finally:
-        page.screencast.stop()
 
 
 def test_on_frame_receives_viewport_size(browser: Browser, server: Server) -> None:
