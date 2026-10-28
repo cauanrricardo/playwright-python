@@ -147,4 +147,4 @@ def test_show_actions_should_accept_cursor_param(page: Page) -> None:
         with page.screencast.show_actions(duration=100, cursor="pointer"):
             page.locator("button").click()
         with page.screencast.show_actions(duration=100, cursor="none"):
-            pass
+            page.locator("button").click()
