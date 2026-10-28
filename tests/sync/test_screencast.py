@@ -147,11 +147,8 @@ def test_on_frame_receives_viewport_size(browser: Browser, server: Server) -> No
 
 
 def test_show_actions_should_accept_cursor_param(page: Page) -> None:
-    page.screencast.start(on_frame=lambda f: None)
-    try:
+    with page.screencast.start(on_frame=lambda f: None):
         with page.screencast.show_actions(duration=100, cursor="pointer"):
             pass
         with page.screencast.show_actions(duration=100, cursor="none"):
             pass
-    finally:
-        page.screencast.stop()
