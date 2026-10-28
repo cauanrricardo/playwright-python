@@ -14,6 +14,7 @@
 
 import json
 from pathlib import Path
+from typing import Generator
 
 import pytest
 
@@ -43,7 +44,8 @@ def test_should_capture_local_storage(context: BrowserContext) -> None:
     }
 
 
-def test_should_set_local_storage(browser: Browser) -> None:
+@pytest.fixture
+def page_with_storage_state(browser: Browser) -> Generator[Page, None, None]:
     storage_state: StorageState = {
         "origins": [
             {
@@ -72,10 +74,17 @@ def test_should_set_local_storage(browser: Browser) -> None:
     page = context.new_page()
     page.route("**/*", lambda route: route.fulfill(body="<html></html>"))
     page.goto("https://www.example.com")
-    local_storage = page.evaluate("window.localStorage")
+    yield page
+    context.close()
+
+
+def test_should_set_local_storage(page_with_storage_state: Page) -> None:
+    local_storage = page_with_storage_state.evaluate("window.localStorage")
     assert local_storage == {"name1": "value1"}
 
-    indexed_db = page.evaluate(
+
+def test_should_set_indexed_db(page_with_storage_state: Page) -> None:
+    indexed_db = page_with_storage_state.evaluate(
         """async () => {
         return new Promise((resolve, reject) => {
             const openRequest = indexedDB.open('db', 42);
@@ -91,7 +100,6 @@ def test_should_set_local_storage(browser: Browser) -> None:
     }"""
     )
     assert indexed_db == "foo"
-    context.close()
 
 
 def test_should_round_trip_through_the_file(
