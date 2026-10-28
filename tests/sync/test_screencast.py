@@ -20,8 +20,8 @@ from playwright.sync_api import Browser, Page, ScreencastSize
 from tests.server import Server
 
 
-def ensure_some_frames(page: Page) -> None:
-    for _ in range(100):
+def ensure_some_frames(page: Page, count: int = 100) -> None:
+    for _ in range(count):
         page.evaluate(
             "() => new Promise(f => requestAnimationFrame(() => requestAnimationFrame(f)))"
         )
@@ -39,11 +39,7 @@ def test_start_should_deliver_frames_via_callback(page: Page, server: Server) ->
     page.evaluate("() => document.body.style.backgroundColor = 'red'")
     # Force a couple of paint cycles so engines that only emit on visual change
     # still produce a frame. Mirrors upstream `ensureSomeFrames`.
-    for _ in range(3):
-        page.evaluate(
-            "() => new Promise(f => requestAnimationFrame(() => requestAnimationFrame(f)))"
-        )
-    page.screenshot()
+    ensure_some_frames(page, count=3)
     deadline = time.time() + 10
     while not received and time.time() < deadline:
         page.wait_for_timeout(100)
