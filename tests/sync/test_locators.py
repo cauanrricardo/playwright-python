@@ -939,17 +939,22 @@ def test_locators_should_support_locator_and(page: Page) -> None:
     ).to_have_count(2)
 
 
-def test_locators_has_does_not_encode_unicode(page: Page, server: Server) -> None:
+@pytest.mark.parametrize(
+    "make_locator",
+    [
+        lambda page: page.locator("button", has_text="Драматург"),
+        lambda page: page.locator("button", has_text=re.compile("Драматург")),
+        lambda page: page.locator("button", has=page.locator("text=Драматург")),
+    ],
+)
+def test_locators_has_does_not_encode_unicode(
+    page: Page, server: Server, make_locator: Callable[[Page], Locator]
+) -> None:
     page.goto(server.EMPTY_PAGE)
-    locators = [
-        page.locator("button", has_text="Драматург"),
-        page.locator("button", has_text=re.compile("Драматург")),
-        page.locator("button", has=page.locator("text=Драматург")),
-    ]
-    for locator in locators:
-        with pytest.raises(Error) as exc_info:
-            locator.click(timeout=1_000)
-        assert "Драматург" in exc_info.value.message
+    locator = make_locator(page)
+    with pytest.raises(Error) as exc_info:
+        locator.click(timeout=1_000)
+    assert "Драматург" in exc_info.value.message
 
 
 def test_locators_should_focus_and_blur_a_button(page: Page, server: Server) -> None:
