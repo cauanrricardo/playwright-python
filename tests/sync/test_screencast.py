@@ -137,9 +137,8 @@ def test_on_frame_receives_viewport_size(browser: Browser, server: Server) -> No
         page.screencast.stop()
         assert len(received) >= 1
         assert any(frame["viewportWidth"] == 1000 for frame in received)
-        for frame in received:
-            assert frame["viewportHeight"] == 400
-            assert isinstance(frame["timestamp"], (int, float))
+        assert all(frame["viewportHeight"] == 400 for frame in received)
+        assert all(isinstance(frame["timestamp"], (int, float)) for frame in received)
 
 
 def test_show_actions_should_accept_cursor_param(page: Page) -> None:
