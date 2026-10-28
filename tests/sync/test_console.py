@@ -101,10 +101,8 @@ def test_console_should_not_fail_for_window_object(
     with page.expect_console_message():
         page.evaluate("() => console.error(window)")
     assert len(messages) == 1
-    if browser_name != "firefox":
-        assert messages[0].text == "Window"
-    else:
-        assert messages[0].text == "JSHandle@object"
+    expected_text = {"firefox": "JSHandle@object"}.get(browser_name, "Window")
+    assert messages[0].text == expected_text
 
 
 # Upstream issue https://bugs.webkit.org/show_bug.cgi?id=229515
