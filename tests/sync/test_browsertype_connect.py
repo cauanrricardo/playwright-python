@@ -247,5 +247,4 @@ def test_set_input_files_should_preserve_last_modified_timestamp(
 
     # On Linux browser sometimes reduces the timestamp by 1ms: 1696272058110.0715  -> 1696272058109 or even
     # rounds it to seconds in WebKit: 1696272058110 -> 1696272058000.
-    for i in range(len(timestamps)):
-        assert abs(timestamps[i] - expected_timestamps[i]) < 1000
+    assert timestamps == pytest.approx(expected_timestamps, abs=1000)
