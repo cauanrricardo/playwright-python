@@ -337,20 +337,19 @@ def test_locators_should_press(page: Page) -> None:
     assert page.eval_on_selector("input", "input => input.value") == "h"
 
 
-def test_locators_should_scroll_into_view(page: Page, server: Server) -> None:
+@pytest.mark.parametrize("i", range(11))
+def test_locators_should_scroll_into_view(page: Page, server: Server, i: int) -> None:
     page.goto(server.PREFIX + "/offscreenbuttons.html")
-    for i in range(11):
-        button = page.locator(f"#btn{i}")
-        before = button.evaluate(
-            "button => button.getBoundingClientRect().right - window.innerWidth"
-        )
-        assert before == 10 * i
-        button.scroll_into_view_if_needed()
-        after = button.evaluate(
-            "button => button.getBoundingClientRect().right - window.innerWidth"
-        )
-        assert after <= 0
-        page.evaluate("window.scrollTo(0, 0)")
+    button = page.locator(f"#btn{i}")
+    before = button.evaluate(
+        "button => button.getBoundingClientRect().right - window.innerWidth"
+    )
+    assert before == 10 * i
+    button.scroll_into_view_if_needed()
+    after = button.evaluate(
+        "button => button.getBoundingClientRect().right - window.innerWidth"
+    )
+    assert after <= 0
 
 
 def test_locators_should_select_textarea(
