@@ -178,6 +178,25 @@ def test_should_amend_http_headers(
     assert values == ["bar", "bar", "bar"]
 
 
+FETCH_WITH_FOO_AND_BAR_HEADERS_JS = """
+    async url => {
+        const data = await fetch(url, {
+            headers: {
+            foo: 'a',
+            bar: 'b',
+            }
+        });
+        return data.text();
+        }
+    """
+
+
+def delete_foo_header(route: Route, request: Request) -> None:
+    headers = request.all_headers()
+    del headers["foo"]
+    route.fallback(headers=headers)
+
+
 def test_should_delete_header_with_undefined_value(
     page: Page, context: BrowserContext, server: Server
 ) -> None:
@@ -198,27 +217,10 @@ def test_should_delete_header_with_undefined_value(
         route.continue_()
 
     context.route("**/*", capture_and_continue)
-
-    def delete_foo_header(route: Route, request: Request) -> None:
-        headers = request.all_headers()
-        del headers["foo"]
-        route.fallback(headers=headers)
-
     context.route(server.PREFIX + "/something", delete_foo_header)
     with server.expect_request("/something") as server_req_info:
         text = page.evaluate(
-            """
-            async url => {
-                const data = await fetch(url, {
-                    headers: {
-                    foo: 'a',
-                    bar: 'b',
-                    }
-                });
-                return data.text();
-                }
-            """,
-            server.PREFIX + "/something",
+            FETCH_WITH_FOO_AND_BAR_HEADERS_JS, server.PREFIX + "/something"
         )
     server_req = server_req_info.value
     assert text == "done"
