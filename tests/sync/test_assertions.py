@@ -356,7 +356,16 @@ def test_ignore_case_regex(page: Page, server: Server, method: str) -> None:
         )
     assert expected_error_msg in str(excinfo.value)
 
-    # Array Variants
+
+@pytest.mark.parametrize(
+    "method",
+    ["to_have_text", "to_contain_text"],
+)
+def test_ignore_case_regex_array_variants(
+    page: Page, server: Server, method: str
+) -> None:
+    page.goto(server.EMPTY_PAGE)
+    page.set_content("<div id=target>apple BANANA</div><div>orange</div>")
     getattr(expect(page.locator("div")), method)(
         [re.compile("apple BANANA"), re.compile("orange")]
     )
@@ -369,6 +378,7 @@ def test_ignore_case_regex(page: Page, server: Server, method: str) -> None:
             [re.compile("apple banana"), re.compile("ORANGE")],
             timeout=300,
         )
+    expected_error_msg = method.replace("_", " ")
     assert expected_error_msg in str(excinfo.value)
     # overrides regex flag
     with pytest.raises(AssertionError) as excinfo:
@@ -382,7 +392,17 @@ def test_ignore_case_regex(page: Page, server: Server, method: str) -> None:
         )
     assert expected_error_msg in str(excinfo.value)
 
-    # not variant
+
+@pytest.mark.parametrize(
+    "method",
+    ["to_have_text", "to_contain_text"],
+)
+def test_ignore_case_regex_not_variant(
+    page: Page, server: Server, method: str
+) -> None:
+    page.goto(server.EMPTY_PAGE)
+    page.set_content("<div id=target>apple BANANA</div><div>orange</div>")
+    expected_error_msg = method.replace("_", " ")
     getattr(expect(page.locator("div#target")), f"not_{method}")(
         re.compile("apple banana")
     )
