@@ -258,8 +258,7 @@ def test_by_default_should_abort_requests_not_found_in_har(
     context: BrowserContext,
     server: Server,
     assetdir: Path,
-    is_chromium: bool,
-    is_webkit: bool,
+    browser_name: str,
 ) -> None:
     context.route_from_har(har=assetdir / "har-fulfill.har")
     page = context.new_page()
@@ -267,12 +266,11 @@ def test_by_default_should_abort_requests_not_found_in_har(
     with pytest.raises(Error) as exc_info:
         page.goto(server.EMPTY_PAGE)
     assert exc_info.value
-    if is_chromium:
-        assert "net::ERR_FAILED" in exc_info.value.message
-    elif is_webkit:
-        assert "Blocked by Web Inspector" in exc_info.value.message
-    else:
-        assert "NS_ERROR_FAILURE" in exc_info.value.message
+    expected_message = {
+        "chromium": "net::ERR_FAILED",
+        "webkit": "Blocked by Web Inspector",
+    }.get(browser_name, "NS_ERROR_FAILURE")
+    assert expected_message in exc_info.value.message
 
 
 def test_fallback_continue_should_continue_requests_on_bad_har(
