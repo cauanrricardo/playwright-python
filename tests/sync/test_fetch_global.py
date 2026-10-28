@@ -310,17 +310,16 @@ def test_should_not_follow_redirects_when_max_redirects_is_set_to_0(
     assert response.status == 302
 
 
+@pytest.mark.parametrize("method", ["GET", "PUT", "POST", "OPTIONS", "HEAD", "PATCH"])
 def test_should_throw_an_error_when_max_redirects_is_less_than_0(
     playwright: Playwright,
     server: Server,
+    method: str,
 ) -> None:
     request = playwright.request.new_context()
-    for method in ["GET", "PUT", "POST", "OPTIONS", "HEAD", "PATCH"]:
-        with pytest.raises(AssertionError) as exc_info:
-            request.fetch(
-                server.PREFIX + "/a/redirect1", method=method, max_redirects=-1
-            )
-        assert "'max_redirects' must be greater than or equal to '0'" in str(exc_info)
+    with pytest.raises(AssertionError) as exc_info:
+        request.fetch(server.PREFIX + "/a/redirect1", method=method, max_redirects=-1)
+    assert "'max_redirects' must be greater than or equal to '0'" in str(exc_info)
 
 
 def test_should_serialize_null_values_in_json(
