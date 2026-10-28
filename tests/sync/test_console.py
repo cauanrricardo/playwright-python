@@ -32,12 +32,11 @@ def test_console_should_work(page: Page, browser_name: str) -> None:
         page.evaluate('() => console.log("hello", 5, {foo: "bar"})')
     assert len(messages) == 1
     message = messages[0]
-    if browser_name != "firefox":
-        assert message.text == "hello 5 {foo: bar}"
-        assert str(message) == "hello 5 {foo: bar}"
-    else:
-        assert message.text == "hello 5 JSHandle@object"
-        assert str(message) == "hello 5 JSHandle@object"
+    expected_text = {"firefox": "hello 5 JSHandle@object"}.get(
+        browser_name, "hello 5 {foo: bar}"
+    )
+    assert message.text == expected_text
+    assert str(message) == expected_text
     assert message.type == "log"
     assert message.args[0].json_value() == "hello"
     assert message.args[1].json_value() == 5
