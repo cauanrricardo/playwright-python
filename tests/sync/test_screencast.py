@@ -28,6 +28,12 @@ def ensure_some_frames(page: Page, count: int = 100) -> None:
     page.screenshot()
 
 
+def wait_for_received_frames(page: Page, received: list, timeout: float = 10) -> None:
+    deadline = time.time() + timeout
+    while not received and time.time() < deadline:
+        page.wait_for_timeout(100)
+
+
 def test_should_expose_screencast_property(page: Page) -> None:
     assert page.screencast is page.screencast
 
@@ -40,9 +46,7 @@ def test_start_should_deliver_frames_via_callback(page: Page, server: Server) ->
     # Force a couple of paint cycles so engines that only emit on visual change
     # still produce a frame. Mirrors upstream `ensureSomeFrames`.
     ensure_some_frames(page, count=3)
-    deadline = time.time() + 10
-    while not received and time.time() < deadline:
-        page.wait_for_timeout(100)
+    wait_for_received_frames(page, received)
     page.screencast.stop()
     assert len(received) >= 1
     assert all(isinstance(d, bytes) and len(d) > 0 for d in received)
