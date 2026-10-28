@@ -75,9 +75,8 @@ def test_selectors_register_should_work_with_path(
     assert page.eval_on_selector("foo=whatever", "e => e.nodeName") == "SECTION"
 
 
-def test_selectors_register_should_work_in_main_and_isolated_world(
-    selectors: Selectors, page: Page, utils: Utils
-) -> None:
+@pytest.fixture
+def main_and_isolated_engines(selectors: Selectors, page: Page, utils: Utils) -> None:
     dummy_selector_script = """{
       create(root, target) { },
       query(root, selector) {
@@ -94,6 +93,10 @@ def test_selectors_register_should_work_in_main_and_isolated_world(
     )
     page.set_content("<div><span><section></section></span></div>")
     page.evaluate('() => window.__answer = document.querySelector("span")')
+
+
+@pytest.mark.usefixtures("main_and_isolated_engines")
+def test_selectors_register_should_work_in_main_world(page: Page) -> None:
     # Works in main if asked.
     assert page.eval_on_selector("main=ignored", "e => e.nodeName") == "SPAN"
     assert page.eval_on_selector("css=div >> main=ignored", "e => e.nodeName") == "SPAN"
@@ -103,6 +106,10 @@ def test_selectors_register_should_work_in_main_and_isolated_world(
     assert (
         page.eval_on_selector_all("main=ignored", "es => es.filter(e => e).length") == 3
     )
+
+
+@pytest.mark.usefixtures("main_and_isolated_engines")
+def test_selectors_register_should_work_in_isolated_world(page: Page) -> None:
     # Works in isolated by default.
     assert page.query_selector("isolated=ignored") is None
     assert page.query_selector("css=div >> isolated=ignored") is None
@@ -114,6 +121,10 @@ def test_selectors_register_should_work_in_main_and_isolated_world(
         page.eval_on_selector_all("isolated=ignored", "es => es.filter(e => e).length")
         == 3
     )
+
+
+@pytest.mark.usefixtures("main_and_isolated_engines")
+def test_selectors_register_should_chain_main_and_isolated_engines(page: Page) -> None:
     # At least one engine in main forces all to be in main.
     assert (
         page.eval_on_selector("main=ignored >> isolated=ignored", "e => e.nodeName")
