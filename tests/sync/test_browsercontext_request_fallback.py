@@ -117,8 +117,7 @@ def test_should_not_chain_abort(
     page: Page,
     context: BrowserContext,
     server: Server,
-    is_webkit: bool,
-    is_firefox: bool,
+    browser_name: str,
 ) -> None:
     failed = [False]
 
@@ -131,12 +130,11 @@ def test_should_not_chain_abort(
 
     with pytest.raises(Error) as excinfo:
         page.goto(server.EMPTY_PAGE)
-    if is_webkit:
-        assert "Blocked by Web Inspector" in excinfo.value.message
-    elif is_firefox:
-        assert "NS_ERROR_FAILURE" in excinfo.value.message
-    else:
-        assert "net::ERR_FAILED" in excinfo.value.message
+    expected_message = {
+        "webkit": "Blocked by Web Inspector",
+        "firefox": "NS_ERROR_FAILURE",
+    }.get(browser_name, "net::ERR_FAILED")
+    assert expected_message in excinfo.value.message
     assert not failed[0]
 
 
