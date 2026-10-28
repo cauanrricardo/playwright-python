@@ -362,27 +362,26 @@ def test_hover_when_node_is_removed(page: Page, server: Server) -> None:
     assert page.evaluate('document.querySelector("button:hover").id') == "button-6"
 
 
-def test_scroll(page: Page, server: Server) -> None:
+@pytest.mark.parametrize("i", range(11))
+def test_scroll(page: Page, server: Server, i: int) -> None:
     page.goto(server.PREFIX + "/offscreenbuttons.html")
-    for i in range(11):
-        button = page.query_selector(f"#btn{i}")
-        assert button
-        before = button.evaluate(
-            """button => {
-                return button.getBoundingClientRect().right - window.innerWidth
-            }"""
-        )
+    button = page.query_selector(f"#btn{i}")
+    assert button
+    before = button.evaluate(
+        """button => {
+            return button.getBoundingClientRect().right - window.innerWidth
+        }"""
+    )
 
-        assert before == 10 * i
-        button.scroll_into_view_if_needed()
-        after = button.evaluate(
-            """button => {
-                return button.getBoundingClientRect().right - window.innerWidth
-            }"""
-        )
+    assert before == 10 * i
+    button.scroll_into_view_if_needed()
+    after = button.evaluate(
+        """button => {
+            return button.getBoundingClientRect().right - window.innerWidth
+        }"""
+    )
 
-        assert after <= 0
-        page.evaluate("() => window.scrollTo(0, 0)")
+    assert after <= 0
 
 
 def test_scroll_should_throw_for_detached_element(page: Page) -> None:
