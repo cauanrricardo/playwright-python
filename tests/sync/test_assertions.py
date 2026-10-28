@@ -14,7 +14,7 @@
 
 import datetime
 import re
-from typing import Generator
+from typing import Any, Callable, Generator
 
 import pytest
 
@@ -810,62 +810,61 @@ def test_assertions_response_is_ok_fail(page: Page, server: Server) -> None:
     assert "← 404 Not Found" in error_message
 
 
+@pytest.mark.parametrize(
+    "path, handler, body, shows_text",
+    [
+        (
+            "/text-content-type",
+            lambda r: (
+                r.setResponseCode(404),
+                r.setHeader("content-type", "text/plain"),
+                r.write(b"Text error"),
+                r.finish(),
+            ),
+            "Text error",
+            True,
+        ),
+        (
+            "/no-content-type",
+            lambda r: (
+                r.setResponseCode(404),
+                r.write(b"No content type error"),
+                r.finish(),
+            ),
+            "No content type error",
+            False,
+        ),
+        (
+            "/binary-content-type",
+            lambda r: (
+                r.setResponseCode(404),
+                r.setHeader("content-type", "image/bmp"),
+                r.write(b"Image content type error"),
+                r.finish(),
+            ),
+            "Image content type error",
+            False,
+        ),
+    ],
+)
 def test_should_print_response_with_text_content_type_if_to_be_ok_fails(
-    page: Page, server: Server
+    page: Page,
+    server: Server,
+    path: str,
+    handler: Callable[[Any], Any],
+    body: str,
+    shows_text: bool,
 ) -> None:
-    server.set_route(
-        "/text-content-type",
-        lambda r: (
-            r.setResponseCode(404),
-            r.setHeader("content-type", "text/plain"),
-            r.write(b"Text error"),
-            r.finish(),
-        ),
-    )
-    server.set_route(
-        "/no-content-type",
-        lambda r: (
-            r.setResponseCode(404),
-            r.write(b"No content type error"),
-            r.finish(),
-        ),
-    )
-    server.set_route(
-        "/binary-content-type",
-        lambda r: (
-            r.setResponseCode(404),
-            r.setHeader("content-type", "image/bmp"),
-            r.write(b"Image content type error"),
-            r.finish(),
-        ),
-    )
+    server.set_route(path, handler)
 
-    response = page.request.get(server.PREFIX + "/text-content-type")
+    response = page.request.get(server.PREFIX + path)
     with pytest.raises(AssertionError) as excinfo:
         expect(response).to_be_ok()
     error_message = str(excinfo.value)
-    assert ("→ GET " + server.PREFIX + "/text-content-type") in error_message
+    assert ("→ GET " + server.PREFIX + path) in error_message
     assert "← 404 Not Found" in error_message
-    assert "Response Text:" in error_message
-    assert "Text error" in error_message
-
-    response = page.request.get(server.PREFIX + "/no-content-type")
-    with pytest.raises(AssertionError) as excinfo:
-        expect(response).to_be_ok()
-    error_message = str(excinfo.value)
-    assert ("→ GET " + server.PREFIX + "/no-content-type") in error_message
-    assert "← 404 Not Found" in error_message
-    assert "Response Text:" not in error_message
-    assert "No content type error" not in error_message
-
-    response = page.request.get(server.PREFIX + "/binary-content-type")
-    with pytest.raises(AssertionError) as excinfo:
-        expect(response).to_be_ok()
-    error_message = str(excinfo.value)
-    assert ("→ GET " + server.PREFIX + "/binary-content-type") in error_message
-    assert "← 404 Not Found" in error_message
-    assert "Response Text:" not in error_message
-    assert "Image content type error" not in error_message
+    assert ("Response Text:" in error_message) == shows_text
+    assert (body in error_message) == shows_text
 
 
 def test_should_print_users_message_for_page_based_assertion(
