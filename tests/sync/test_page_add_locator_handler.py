@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import sys
 from typing import TYPE_CHECKING
 
@@ -207,10 +208,8 @@ def test_should_throw_when_handler_times_out(page: Page, server: Server) -> None
         nonlocal called
         called += 1
         # Deliberately timeout.
-        try:
+        with contextlib.suppress(Exception):
             page.wait_for_timeout(9999999)
-        except Exception:
-            pass
 
     page.add_locator_handler(
         page.get_by_text("This interstitial covers the button"), handler
