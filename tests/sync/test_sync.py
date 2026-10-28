@@ -144,9 +144,10 @@ def test_sync_handle_multiple_pages(context: BrowserContext) -> None:
     assert len(context.pages) == 1
     page2.close()
     assert len(context.pages) == 0
-    for page in [page1, page2]:
-        with pytest.raises(Error):
-            page.content()
+    with pytest.raises(Error):
+        page1.content()
+    with pytest.raises(Error):
+        page2.content()
 
 
 def test_sync_wait_for_event(page: Page, server: Server) -> None:
