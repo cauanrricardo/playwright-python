@@ -133,11 +133,7 @@ def test_on_frame_receives_viewport_size(browser: Browser, server: Server) -> No
         page.screencast.start(on_frame=lambda f: received.append(f), size=size)
         page.goto(server.EMPTY_PAGE)
         page.evaluate("() => document.body.style.backgroundColor = 'red'")
-        for _ in range(100):
-            page.evaluate(
-                "() => new Promise(f => requestAnimationFrame(() => requestAnimationFrame(f)))"
-            )
-        page.screenshot()
+        ensure_some_frames(page)
         page.screencast.stop()
         assert len(received) >= 1
         assert any(frame["viewportWidth"] == 1000 for frame in received)
