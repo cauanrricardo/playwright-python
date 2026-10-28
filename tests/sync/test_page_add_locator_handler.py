@@ -73,7 +73,18 @@ def test_should_work(page: Page, server: Server, args: list) -> None:
     expect(page.locator("#interstitial")).not_to_be_visible()
 
 
-def test_should_work_with_a_custom_check(page: Page, server: Server) -> None:
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["mouseover", 2],
+        ["none", 1],
+        ["remove", 1],
+        ["hide", 1],
+    ],
+)
+def test_should_work_with_a_custom_check(
+    page: Page, server: Server, args: list
+) -> None:
     page.goto(server.PREFIX + "/input/handle-locator.html")
 
     def handler() -> None:
@@ -82,20 +93,14 @@ def test_should_work_with_a_custom_check(page: Page, server: Server) -> None:
 
     page.add_locator_handler(page.locator("body"), handler, no_wait_after=True)
 
-    for args in [
-        ["mouseover", 2],
-        ["none", 1],
-        ["remove", 1],
-        ["hide", 1],
-    ]:
-        page.locator("#aside").hover()
-        page.evaluate(
-            "(args) => { window.clicked = 0; window.setupAnnoyingInterstitial(...args); }",
-            args,
-        )
-        page.locator("#target").click()
-        assert page.evaluate("window.clicked") == 1
-        expect(page.locator("#interstitial")).not_to_be_visible()
+    page.locator("#aside").hover()
+    page.evaluate(
+        "(args) => { window.clicked = 0; window.setupAnnoyingInterstitial(...args); }",
+        args,
+    )
+    page.locator("#target").click()
+    assert page.evaluate("window.clicked") == 1
+    expect(page.locator("#interstitial")).not_to_be_visible()
 
 
 def test_should_work_with_keyword_only_handler(page: Page, server: Server) -> None:
