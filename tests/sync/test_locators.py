@@ -352,19 +352,29 @@ def test_locators_should_scroll_into_view(page: Page, server: Server, i: int) ->
     assert after <= 0
 
 
-def test_locators_should_select_textarea(
-    page: Page, server: Server, browser_name: str
-) -> None:
+@pytest.fixture
+def selected_textarea(page: Page, server: Server) -> Locator:
     page.goto(server.PREFIX + "/input/textarea.html")
     textarea = page.locator("textarea")
     textarea.evaluate("textarea => textarea.value = 'some value'")
     textarea.select_text()
     textarea.select_text(timeout=25_000)
-    if browser_name == "firefox" or browser_name == "webkit":
-        assert textarea.evaluate("el => el.selectionStart") == 0
-        assert textarea.evaluate("el => el.selectionEnd") == 10
-    else:
-        assert page.evaluate("window.getSelection().toString()") == "some value"
+    return textarea
+
+
+@pytest.mark.skip_browser("chromium")
+def test_locators_should_select_textarea_firefox_webkit(
+    selected_textarea: Locator,
+) -> None:
+    assert selected_textarea.evaluate("el => el.selectionStart") == 0
+    assert selected_textarea.evaluate("el => el.selectionEnd") == 10
+
+
+@pytest.mark.only_browser("chromium")
+def test_locators_should_select_textarea_chromium(
+    page: Page, selected_textarea: Locator
+) -> None:
+    assert page.evaluate("window.getSelection().toString()") == "some value"
 
 
 def test_locators_should_type(page: Page) -> None:
