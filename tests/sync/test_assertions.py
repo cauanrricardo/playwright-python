@@ -14,6 +14,7 @@
 
 import datetime
 import re
+from typing import Generator
 
 import pytest
 
@@ -972,16 +973,21 @@ def test_should_be_able_to_set_custom_timeout(page: Page) -> None:
     )
 
 
-def test_should_be_able_to_set_custom_global_timeout(page: Page) -> None:
-    try:
-        expect.set_options(timeout=111)
-        with pytest.raises(AssertionError) as exc_info:
-            expect(page.locator("#a1")).to_be_visible()
-        assert 'Expect "to_be_visible" locator("#a1") with timeout 111ms' in str(
-            exc_info.value
-        )
-    finally:
-        expect.set_options(timeout=5_000)
+@pytest.fixture
+def custom_global_timeout() -> Generator[None, None, None]:
+    expect.set_options(timeout=111)
+    yield
+    expect.set_options(timeout=5_000)
+
+
+def test_should_be_able_to_set_custom_global_timeout(
+    page: Page, custom_global_timeout: None
+) -> None:
+    with pytest.raises(AssertionError) as exc_info:
+        expect(page.locator("#a1")).to_be_visible()
+    assert 'Expect "to_be_visible" locator("#a1") with timeout 111ms' in str(
+        exc_info.value
+    )
 
 
 def test_to_have_accessible_name(page: Page) -> None:
