@@ -225,9 +225,7 @@ def test_locators_should_query_existing_elements(page: Page) -> None:
     html = page.locator("html")
     elements = html.locator("div").element_handles()
     assert len(elements) == 2
-    result = []
-    for element in elements:
-        result.append(page.evaluate("e => e.textContent", element))
+    result = [page.evaluate("e => e.textContent", element) for element in elements]
     assert result == ["A", "B"]
 
 
