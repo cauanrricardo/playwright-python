@@ -82,51 +82,34 @@ def test_should_attach_content(
     page.goto(server.PREFIX + "/har.html")
     page.evaluate("() => fetch('/pptr.png').then(r => r.arrayBuffer())")
     context.close()
+    html_hash = "75841480e2606c03389077304342fac2c58ccb1b"
+    css_hash = "79f739d7bc88e80f55b9891a22bf13a2b4e18adb"
+    png_hash = "a4c3a18f0bb83f5d9fe7ce561e065c36205762fa"
     with zipfile.ZipFile(path) as z:
         with z.open("har.har") as har:
             entries = json.load(har)["log"]["entries"]
 
-            assert "encoding" not in entries[0]["response"]["content"]
-            assert (
-                entries[0]["response"]["content"]["mimeType"]
-                == "text/html; charset=utf-8"
-            )
-            assert (
-                "75841480e2606c03389077304342fac2c58ccb1b"
-                in entries[0]["response"]["content"]["_file"]
-            )
-            assert entries[0]["response"]["content"]["size"] >= 96
-            assert entries[0]["response"]["content"]["compression"] == 0
+        contents = [entry["response"]["content"] for entry in entries[:3]]
+        assert all("encoding" not in content for content in contents)
+        assert [content["mimeType"] for content in contents] == [
+            "text/html; charset=utf-8",
+            "text/css; charset=utf-8",
+            "image/png",
+        ]
+        files = [content["_file"] for content in contents]
+        assert all(h in f for h, f in zip([html_hash, css_hash, png_hash], files))
+        sizes = [content["size"] for content in contents]
+        assert all(size >= low for size, low in zip(sizes, [96, 37, 6000]))
+        assert [content["compression"] for content in contents] == [0, 0, 0]
 
-            assert "encoding" not in entries[1]["response"]["content"]
-            assert (
-                entries[1]["response"]["content"]["mimeType"]
-                == "text/css; charset=utf-8"
-            )
-            assert (
-                "79f739d7bc88e80f55b9891a22bf13a2b4e18adb"
-                in entries[1]["response"]["content"]["_file"]
-            )
-            assert entries[1]["response"]["content"]["size"] >= 37
-            assert entries[1]["response"]["content"]["compression"] == 0
+        with z.open(f"{html_hash}.html") as f:
+            assert b"HAR Page" in f.read()
 
-            assert "encoding" not in entries[2]["response"]["content"]
-            assert entries[2]["response"]["content"]["mimeType"] == "image/png"
-            assert (
-                "a4c3a18f0bb83f5d9fe7ce561e065c36205762fa"
-                in entries[2]["response"]["content"]["_file"]
-            )
-            assert entries[2]["response"]["content"]["size"] >= 6000
-            assert entries[2]["response"]["content"]["compression"] == 0
+        with z.open(f"{css_hash}.css") as f:
+            assert b"pink" in f.read()
 
-            with z.open("75841480e2606c03389077304342fac2c58ccb1b.html") as f:
-                assert b"HAR Page" in f.read()
-
-            with z.open("79f739d7bc88e80f55b9891a22bf13a2b4e18adb.css") as f:
-                assert b"pink" in f.read()
-
-            with z.open("a4c3a18f0bb83f5d9fe7ce561e065c36205762fa.png") as f:
-                assert len(f.read()) == entries[2]["response"]["content"]["size"]
+        with z.open(f"{png_hash}.png") as f:
+            assert len(f.read()) == contents[2]["size"]
 
 
 def test_should_include_content(
@@ -258,8 +241,7 @@ def test_by_default_should_abort_requests_not_found_in_har(
     context: BrowserContext,
     server: Server,
     assetdir: Path,
-    is_chromium: bool,
-    is_webkit: bool,
+    browser_name: str,
 ) -> None:
     context.route_from_har(har=assetdir / "har-fulfill.har")
     page = context.new_page()
@@ -267,12 +249,11 @@ def test_by_default_should_abort_requests_not_found_in_har(
     with pytest.raises(Error) as exc_info:
         page.goto(server.EMPTY_PAGE)
     assert exc_info.value
-    if is_chromium:
-        assert "net::ERR_FAILED" in exc_info.value.message
-    elif is_webkit:
-        assert "Blocked by Web Inspector" in exc_info.value.message
-    else:
-        assert "NS_ERROR_FAILURE" in exc_info.value.message
+    expected_message = {
+        "chromium": "net::ERR_FAILED",
+        "webkit": "Blocked by Web Inspector",
+    }.get(browser_name, "NS_ERROR_FAILURE")
+    assert expected_message in exc_info.value.message
 
 
 def test_fallback_continue_should_continue_requests_on_bad_har(

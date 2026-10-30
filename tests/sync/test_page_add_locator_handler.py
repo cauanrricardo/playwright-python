@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import sys
 from typing import TYPE_CHECKING
 
@@ -26,7 +27,21 @@ if TYPE_CHECKING:
     from playwright.sync_api import Locator as TypeCheckingOnlyLocator
 
 
-def test_should_work(page: Page, server: Server) -> None:
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["mouseover", 1],
+        ["mouseover", 1, "capture"],
+        ["mouseover", 2],
+        ["mouseover", 2, "capture"],
+        ["pointerover", 1],
+        ["pointerover", 1, "capture"],
+        ["none", 1],
+        ["remove", 1],
+        ["hide", 1],
+    ],
+)
+def test_should_work(page: Page, server: Server, args: list) -> None:
     page.goto(server.PREFIX + "/input/handle-locator.html")
 
     before_count = 0
@@ -44,34 +59,32 @@ def test_should_work(page: Page, server: Server) -> None:
 
     page.add_locator_handler(original_locator, handler)
 
-    for args in [
-        ["mouseover", 1],
-        ["mouseover", 1, "capture"],
+    page.locator("#aside").hover()
+    page.evaluate(
+        "(args) => { window.clicked = 0; window.setupAnnoyingInterstitial(...args); }",
+        args,
+    )
+    assert before_count == 0
+    assert after_count == 0
+    page.locator("#target").click()
+    assert before_count == args[1]
+    assert after_count == args[1]
+    assert page.evaluate("window.clicked") == 1
+    expect(page.locator("#interstitial")).not_to_be_visible()
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
         ["mouseover", 2],
-        ["mouseover", 2, "capture"],
-        ["pointerover", 1],
-        ["pointerover", 1, "capture"],
         ["none", 1],
         ["remove", 1],
         ["hide", 1],
-    ]:
-        page.locator("#aside").hover()
-        before_count = 0
-        after_count = 0
-        page.evaluate(
-            "(args) => { window.clicked = 0; window.setupAnnoyingInterstitial(...args); }",
-            args,
-        )
-        assert before_count == 0
-        assert after_count == 0
-        page.locator("#target").click()
-        assert before_count == args[1]
-        assert after_count == args[1]
-        assert page.evaluate("window.clicked") == 1
-        expect(page.locator("#interstitial")).not_to_be_visible()
-
-
-def test_should_work_with_a_custom_check(page: Page, server: Server) -> None:
+    ],
+)
+def test_should_work_with_a_custom_check(
+    page: Page, server: Server, args: list
+) -> None:
     page.goto(server.PREFIX + "/input/handle-locator.html")
 
     def handler() -> None:
@@ -80,20 +93,14 @@ def test_should_work_with_a_custom_check(page: Page, server: Server) -> None:
 
     page.add_locator_handler(page.locator("body"), handler, no_wait_after=True)
 
-    for args in [
-        ["mouseover", 2],
-        ["none", 1],
-        ["remove", 1],
-        ["hide", 1],
-    ]:
-        page.locator("#aside").hover()
-        page.evaluate(
-            "(args) => { window.clicked = 0; window.setupAnnoyingInterstitial(...args); }",
-            args,
-        )
-        page.locator("#target").click()
-        assert page.evaluate("window.clicked") == 1
-        expect(page.locator("#interstitial")).not_to_be_visible()
+    page.locator("#aside").hover()
+    page.evaluate(
+        "(args) => { window.clicked = 0; window.setupAnnoyingInterstitial(...args); }",
+        args,
+    )
+    page.locator("#target").click()
+    assert page.evaluate("window.clicked") == 1
+    expect(page.locator("#interstitial")).not_to_be_visible()
 
 
 def test_should_work_with_keyword_only_handler(page: Page, server: Server) -> None:
@@ -207,10 +214,8 @@ def test_should_throw_when_handler_times_out(page: Page, server: Server) -> None
         nonlocal called
         called += 1
         # Deliberately timeout.
-        try:
+        with contextlib.suppress(Exception):
             page.wait_for_timeout(9999999)
-        except Exception:
-            pass
 
     page.add_locator_handler(
         page.get_by_text("This interstitial covers the button"), handler

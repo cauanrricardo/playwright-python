@@ -14,6 +14,7 @@
 
 import datetime
 import re
+from typing import Any, Callable, Generator
 
 import pytest
 
@@ -355,7 +356,16 @@ def test_ignore_case_regex(page: Page, server: Server, method: str) -> None:
         )
     assert expected_error_msg in str(excinfo.value)
 
-    # Array Variants
+
+@pytest.mark.parametrize(
+    "method",
+    ["to_have_text", "to_contain_text"],
+)
+def test_ignore_case_regex_array_variants(
+    page: Page, server: Server, method: str
+) -> None:
+    page.goto(server.EMPTY_PAGE)
+    page.set_content("<div id=target>apple BANANA</div><div>orange</div>")
     getattr(expect(page.locator("div")), method)(
         [re.compile("apple BANANA"), re.compile("orange")]
     )
@@ -368,6 +378,7 @@ def test_ignore_case_regex(page: Page, server: Server, method: str) -> None:
             [re.compile("apple banana"), re.compile("ORANGE")],
             timeout=300,
         )
+    expected_error_msg = method.replace("_", " ")
     assert expected_error_msg in str(excinfo.value)
     # overrides regex flag
     with pytest.raises(AssertionError) as excinfo:
@@ -381,7 +392,17 @@ def test_ignore_case_regex(page: Page, server: Server, method: str) -> None:
         )
     assert expected_error_msg in str(excinfo.value)
 
-    # not variant
+
+@pytest.mark.parametrize(
+    "method",
+    ["to_have_text", "to_contain_text"],
+)
+def test_ignore_case_regex_not_variant(
+    page: Page, server: Server, method: str
+) -> None:
+    page.goto(server.EMPTY_PAGE)
+    page.set_content("<div id=target>apple BANANA</div><div>orange</div>")
+    expected_error_msg = method.replace("_", " ")
     getattr(expect(page.locator("div#target")), f"not_{method}")(
         re.compile("apple banana")
     )
@@ -789,62 +810,61 @@ def test_assertions_response_is_ok_fail(page: Page, server: Server) -> None:
     assert "← 404 Not Found" in error_message
 
 
+@pytest.mark.parametrize(
+    "path, handler, body, shows_text",
+    [
+        (
+            "/text-content-type",
+            lambda r: (
+                r.setResponseCode(404),
+                r.setHeader("content-type", "text/plain"),
+                r.write(b"Text error"),
+                r.finish(),
+            ),
+            "Text error",
+            True,
+        ),
+        (
+            "/no-content-type",
+            lambda r: (
+                r.setResponseCode(404),
+                r.write(b"No content type error"),
+                r.finish(),
+            ),
+            "No content type error",
+            False,
+        ),
+        (
+            "/binary-content-type",
+            lambda r: (
+                r.setResponseCode(404),
+                r.setHeader("content-type", "image/bmp"),
+                r.write(b"Image content type error"),
+                r.finish(),
+            ),
+            "Image content type error",
+            False,
+        ),
+    ],
+)
 def test_should_print_response_with_text_content_type_if_to_be_ok_fails(
-    page: Page, server: Server
+    page: Page,
+    server: Server,
+    path: str,
+    handler: Callable[[Any], Any],
+    body: str,
+    shows_text: bool,
 ) -> None:
-    server.set_route(
-        "/text-content-type",
-        lambda r: (
-            r.setResponseCode(404),
-            r.setHeader("content-type", "text/plain"),
-            r.write(b"Text error"),
-            r.finish(),
-        ),
-    )
-    server.set_route(
-        "/no-content-type",
-        lambda r: (
-            r.setResponseCode(404),
-            r.write(b"No content type error"),
-            r.finish(),
-        ),
-    )
-    server.set_route(
-        "/binary-content-type",
-        lambda r: (
-            r.setResponseCode(404),
-            r.setHeader("content-type", "image/bmp"),
-            r.write(b"Image content type error"),
-            r.finish(),
-        ),
-    )
+    server.set_route(path, handler)
 
-    response = page.request.get(server.PREFIX + "/text-content-type")
+    response = page.request.get(server.PREFIX + path)
     with pytest.raises(AssertionError) as excinfo:
         expect(response).to_be_ok()
     error_message = str(excinfo.value)
-    assert ("→ GET " + server.PREFIX + "/text-content-type") in error_message
+    assert ("→ GET " + server.PREFIX + path) in error_message
     assert "← 404 Not Found" in error_message
-    assert "Response Text:" in error_message
-    assert "Text error" in error_message
-
-    response = page.request.get(server.PREFIX + "/no-content-type")
-    with pytest.raises(AssertionError) as excinfo:
-        expect(response).to_be_ok()
-    error_message = str(excinfo.value)
-    assert ("→ GET " + server.PREFIX + "/no-content-type") in error_message
-    assert "← 404 Not Found" in error_message
-    assert "Response Text:" not in error_message
-    assert "No content type error" not in error_message
-
-    response = page.request.get(server.PREFIX + "/binary-content-type")
-    with pytest.raises(AssertionError) as excinfo:
-        expect(response).to_be_ok()
-    error_message = str(excinfo.value)
-    assert ("→ GET " + server.PREFIX + "/binary-content-type") in error_message
-    assert "← 404 Not Found" in error_message
-    assert "Response Text:" not in error_message
-    assert "Image content type error" not in error_message
+    assert ("Response Text:" in error_message) == shows_text
+    assert (body in error_message) == shows_text
 
 
 def test_should_print_users_message_for_page_based_assertion(
@@ -972,16 +992,21 @@ def test_should_be_able_to_set_custom_timeout(page: Page) -> None:
     )
 
 
-def test_should_be_able_to_set_custom_global_timeout(page: Page) -> None:
-    try:
-        expect.set_options(timeout=111)
-        with pytest.raises(AssertionError) as exc_info:
-            expect(page.locator("#a1")).to_be_visible()
-        assert 'Expect "to_be_visible" locator("#a1") with timeout 111ms' in str(
-            exc_info.value
-        )
-    finally:
-        expect.set_options(timeout=5_000)
+@pytest.fixture
+def custom_global_timeout() -> Generator[None, None, None]:
+    expect.set_options(timeout=111)
+    yield
+    expect.set_options(timeout=5_000)
+
+
+def test_should_be_able_to_set_custom_global_timeout(
+    page: Page, custom_global_timeout: None
+) -> None:
+    with pytest.raises(AssertionError) as exc_info:
+        expect(page.locator("#a1")).to_be_visible()
+    assert 'Expect "to_be_visible" locator("#a1") with timeout 111ms' in str(
+        exc_info.value
+    )
 
 
 def test_to_have_accessible_name(page: Page) -> None:

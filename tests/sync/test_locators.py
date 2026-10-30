@@ -225,9 +225,7 @@ def test_locators_should_query_existing_elements(page: Page) -> None:
     html = page.locator("html")
     elements = html.locator("div").element_handles()
     assert len(elements) == 2
-    result = []
-    for element in elements:
-        result.append(page.evaluate("e => e.textContent", element))
+    result = [page.evaluate("e => e.textContent", element) for element in elements]
     assert result == ["A", "B"]
 
 
@@ -339,35 +337,44 @@ def test_locators_should_press(page: Page) -> None:
     assert page.eval_on_selector("input", "input => input.value") == "h"
 
 
-def test_locators_should_scroll_into_view(page: Page, server: Server) -> None:
+@pytest.mark.parametrize("i", range(11))
+def test_locators_should_scroll_into_view(page: Page, server: Server, i: int) -> None:
     page.goto(server.PREFIX + "/offscreenbuttons.html")
-    for i in range(11):
-        button = page.locator(f"#btn{i}")
-        before = button.evaluate(
-            "button => button.getBoundingClientRect().right - window.innerWidth"
-        )
-        assert before == 10 * i
-        button.scroll_into_view_if_needed()
-        after = button.evaluate(
-            "button => button.getBoundingClientRect().right - window.innerWidth"
-        )
-        assert after <= 0
-        page.evaluate("window.scrollTo(0, 0)")
+    button = page.locator(f"#btn{i}")
+    before = button.evaluate(
+        "button => button.getBoundingClientRect().right - window.innerWidth"
+    )
+    assert before == 10 * i
+    button.scroll_into_view_if_needed()
+    after = button.evaluate(
+        "button => button.getBoundingClientRect().right - window.innerWidth"
+    )
+    assert after <= 0
 
 
-def test_locators_should_select_textarea(
-    page: Page, server: Server, browser_name: str
-) -> None:
+@pytest.fixture
+def selected_textarea(page: Page, server: Server) -> Locator:
     page.goto(server.PREFIX + "/input/textarea.html")
     textarea = page.locator("textarea")
     textarea.evaluate("textarea => textarea.value = 'some value'")
     textarea.select_text()
     textarea.select_text(timeout=25_000)
-    if browser_name == "firefox" or browser_name == "webkit":
-        assert textarea.evaluate("el => el.selectionStart") == 0
-        assert textarea.evaluate("el => el.selectionEnd") == 10
-    else:
-        assert page.evaluate("window.getSelection().toString()") == "some value"
+    return textarea
+
+
+@pytest.mark.skip_browser("chromium")
+def test_locators_should_select_textarea_firefox_webkit(
+    selected_textarea: Locator,
+) -> None:
+    assert selected_textarea.evaluate("el => el.selectionStart") == 0
+    assert selected_textarea.evaluate("el => el.selectionEnd") == 10
+
+
+@pytest.mark.only_browser("chromium")
+def test_locators_should_select_textarea_chromium(
+    page: Page, selected_textarea: Locator
+) -> None:
+    assert page.evaluate("window.getSelection().toString()") == "some value"
 
 
 def test_locators_should_type(page: Page) -> None:
@@ -932,17 +939,22 @@ def test_locators_should_support_locator_and(page: Page) -> None:
     ).to_have_count(2)
 
 
-def test_locators_has_does_not_encode_unicode(page: Page, server: Server) -> None:
+@pytest.mark.parametrize(
+    "make_locator",
+    [
+        lambda page: page.locator("button", has_text="Драматург"),
+        lambda page: page.locator("button", has_text=re.compile("Драматург")),
+        lambda page: page.locator("button", has=page.locator("text=Драматург")),
+    ],
+)
+def test_locators_has_does_not_encode_unicode(
+    page: Page, server: Server, make_locator: Callable[[Page], Locator]
+) -> None:
     page.goto(server.EMPTY_PAGE)
-    locators = [
-        page.locator("button", has_text="Драматург"),
-        page.locator("button", has_text=re.compile("Драматург")),
-        page.locator("button", has=page.locator("text=Драматург")),
-    ]
-    for locator in locators:
-        with pytest.raises(Error) as exc_info:
-            locator.click(timeout=1_000)
-        assert "Драматург" in exc_info.value.message
+    locator = make_locator(page)
+    with pytest.raises(Error) as exc_info:
+        locator.click(timeout=1_000)
+    assert "Драматург" in exc_info.value.message
 
 
 def test_locators_should_focus_and_blur_a_button(page: Page, server: Server) -> None:
@@ -983,9 +995,7 @@ def test_locators_should_focus_and_blur_a_button(page: Page, server: Server) -> 
 
 def test_locator_all_should_work(page: Page) -> None:
     page.set_content("<div><p>A</p><p>B</p><p>C</p></div>")
-    texts = []
-    for p in page.locator("p").all():
-        texts.append(p.text_content())
+    texts = [p.text_content() for p in page.locator("p").all()]
     assert texts == ["A", "B", "C"]
 
 
