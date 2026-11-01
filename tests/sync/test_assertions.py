@@ -397,9 +397,7 @@ def test_ignore_case_regex_array_variants(
     "method",
     ["to_have_text", "to_contain_text"],
 )
-def test_ignore_case_regex_not_variant(
-    page: Page, server: Server, method: str
-) -> None:
+def test_ignore_case_regex_not_variant(page: Page, server: Server, method: str) -> None:
     page.goto(server.EMPTY_PAGE)
     page.set_content("<div id=target>apple BANANA</div><div>orange</div>")
     expected_error_msg = method.replace("_", " ")

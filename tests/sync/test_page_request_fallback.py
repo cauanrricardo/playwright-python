@@ -109,9 +109,7 @@ def test_should_not_chain_fulfill(page: Page, server: Server) -> None:
     assert not failed[0]
 
 
-def test_should_not_chain_abort(
-    page: Page, server: Server, browser_name: str
-) -> None:
+def test_should_not_chain_abort(page: Page, server: Server, browser_name: str) -> None:
     failed: List[bool] = [False]
 
     def handler(route: Route) -> None:
